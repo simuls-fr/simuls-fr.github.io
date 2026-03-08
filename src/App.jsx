@@ -38,11 +38,16 @@ const App = () => {
 
   // compteur de visites
   useEffect(() => {
-    fetch("https://api.counterapi.dev/v1/first-counter-3196/up")
+    fetch("https://api.counterapi.dev/v1/first-counter-3196/up", {
+      method: "POST",
+      headers: {
+        "Authorization": "ut_K4oKN8crbQ49YFxgc9ab4eNXUxAkIkDSgpoTxnFV"
+      }
+    })
       .then(res => res.json())
       .then(data => {
+        setVisites(data.Count);
         console.log("Visites :", data.Count);
-        setVisites(data.Count); // si tu veux l'afficher
       });
   }, []);
 
