@@ -367,15 +367,15 @@ const App = () => {
                   Structure de la retraite
                 </h4>
 
-                <divclass="space-y-3">
-                  <div className="flexjustify-between items-center text-sm">
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center text-sm">
                     <span className="opacity-70">Dernier salaire mensuel estimé</span>
                     <span className="font-mono">
                       {formatEuro(results.data[results.data.length - 1]?.salaireBrutMensuel)}
                     </span>
                   </div>
 
-                  <div className="flexjustify-between items-center text-sm">
+                  <div className="flex justify-between items-center text-sm">
                     <span className="opacity-70">Pension brute mensuelle</span>
                     <span className="font-mono text-blue-400 font-bold">
                       {formatEuro(results.pensionBruteMensuelle)}
@@ -384,7 +384,7 @@ const App = () => {
 
                   <div className="h-px bg-slate-700 my-2"></div>
 
-                  <div className="flexjustify-between items-center">
+                  <div className="flex justify-between items-center">
                     <span className="text-xs font-bold uppercase opacity-50">
                       Taux de remplacement
                     </span>
