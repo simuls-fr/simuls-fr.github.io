@@ -36,6 +36,17 @@ const App = () => {
     data: []
   });
 
+  // --- Ajouter cette fonction dans ton composant App ---
+  const getRendementProbabilite = (taux) => {
+    if (taux === 0) return { label: 'Neutre', color: 'text-gray-400' };
+    if (taux <= 3) return { label: 'Très probable', color: 'text-green-600' };
+    if (taux <= 5) return { label: 'Probable', color: 'text-green-400' };
+    if (taux <= 7) return { label: 'Assez probable', color: 'text-yellow-500' };
+    if (taux <= 10) return { label: 'Peu probable', color: 'text-orange-500' };
+    if (taux <= 15) return { label: 'Très peu probable', color: 'text-red-600' };
+    return { label: 'Extrême', color: 'text-red-800' };
+  };
+
   // --- Logique de Calcul Optimisée ---
   useEffect(() => {
     const v0 = inputs.salaireBrutInitial * 12 * (inputs.tauxCotisationTotal / 100);
@@ -242,7 +253,14 @@ const App = () => {
                   />
                   <div className="flex justify-between text-sm mt-1 font-semibold">
                     <span>0%</span>
-                    <span className="text-emerald-600">{inputs.rendementAnnuel}%</span>
+                    {(() => {
+                      const prob = getRendementProbabilite(inputs.rendementAnnuel);
+                      return (
+                        <span className={`${prob.color} font-bold`}>
+                          {inputs.rendementAnnuel}% ({prob.label})
+                        </span>
+                      );
+                    })()}
                     <span>15%</span>
                   </div>
                 </div>
