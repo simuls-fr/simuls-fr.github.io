@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area 
 } from 'recharts';
@@ -23,35 +23,43 @@ const App = () => {
     rendementAnnuel: 5, // en %
     tauxCotisationTotal: 28, // en %
     tauxNet: 73.3, // Approximation net/brut du CSV
+    tauxDividende: 0 // % du capital versé en dividendes chaque année
   });
 
   const [results, setResults] = useState({
     totalCotisations: 0,
     totalRendements: 0,
     capitalFinal: 0,
+    dividendesAnnuels: 0,
     pensionBruteMensuelle: 0,
     tauxRemplacementBrut: 0,
     data: []
   });
 
-// --- Logique de Calcul Optimisée ---
+  // --- Logique de Calcul Optimisée ---
   useEffect(() => {
-    const v0 = inputs.salaireBrutInitial * 12 * (inputs.tauxCotisationTotal / 100); // Cotisation annuelle initiale
+    const v0 = inputs.salaireBrutInitial * 12 * (inputs.tauxCotisationTotal / 100);
+    
     const r = inputs.rendementAnnuel / 100;
+    const d = inputs.tauxDividende / 100; // ✅ NOUVEAU
+    const rTotal = r + d;                // ✅ Rendement global
+
     const g = inputs.tauxEvolutionSalaire / 100;
     const n = inputs.anneesCotisation;
 
     // 1. Calcul du Capital Final via la formule de l'Annuité Croissante
-    // Sn = v0 * [(1+r)^n - (1+g)^n] / (r - g)
     let capitalFinalCalculé = 0;
-    if (Math.abs(r - g) < 0.0001) {
-      // Cas particulier où le rendement égale l'évolution du salaire
-      capitalFinalCalculé = v0 * n * Math.pow(1 + r, n - 1);
+
+    if (Math.abs(rTotal - g) < 0.0001) {
+      capitalFinalCalculé = v0 * n * Math.pow(1 + rTotal, n - 1);
     } else {
-      capitalFinalCalculé = v0 * (Math.pow(1 + r, n) - Math.pow(1 + g, n)) / (r - g);
+      capitalFinalCalculé =
+        v0 *
+        (Math.pow(1 + rTotal, n) - Math.pow(1 + g, n)) /
+        (rTotal - g);
     }
 
-    // 2. Génération des données pour le graphique (évolution annuelle)
+    // 2. Génération des données pour le graphique
     const yearlyData = [];
     let cumulCotisations = 0;
     let currentSalaireBrut = inputs.salaireBrutInitial * 12;
@@ -59,13 +67,15 @@ const App = () => {
     for (let i = 1; i <= n; i++) {
       const cotisAnnee = currentSalaireBrut * (inputs.tauxCotisationTotal / 100);
       cumulCotisations += cotisAnnee;
-      
-      // Calcul du capital au temps 'i' pour le graphique
+
       let capI = 0;
-      if (Math.abs(r - g) < 0.0001) {
-        capI = v0 * i * Math.pow(1 + r, i - 1);
+      if (Math.abs(rTotal - g) < 0.0001) {
+        capI = v0 * i * Math.pow(1 + rTotal, i - 1);
       } else {
-        capI = v0 * (Math.pow(1 + r, i) - Math.pow(1 + g, i)) / (r - g);
+        capI =
+          v0 *
+          (Math.pow(1 + rTotal, i) - Math.pow(1 + g, i)) /
+          (rTotal - g);
       }
 
       yearlyData.push({
@@ -79,18 +89,27 @@ const App = () => {
       currentSalaireBrut *= (1 + g);
     }
 
-    // 3. Calcul des résultats de sortie
-    const pensionBruteAnnuelle = capitalFinalCalculé / inputs.esperanceVieRetraite;
-    const dernierSalaireBrutAnnuel = (inputs.salaireBrutInitial * 12) * Math.pow(1 + g, n - 1);
-    
+    // 3. Résultats de sortie
+    const pensionBruteAnnuelle =
+      capitalFinalCalculé / inputs.esperanceVieRetraite;
+
+    const dernierSalaireBrutAnnuel =
+      (inputs.salaireBrutInitial * 12) *
+      Math.pow(1 + g, n - 1);
+
+    const dividendesAnnuels = capitalFinalCalculé * d;
+
     setResults({
       totalCotisations: cumulCotisations,
       totalRendements: capitalFinalCalculé - cumulCotisations,
       capitalFinal: capitalFinalCalculé,
+      dividendesAnnuels: dividendesAnnuels,
       pensionBruteMensuelle: pensionBruteAnnuelle / 12,
-      tauxRemplacementBrut: (pensionBruteAnnuelle / dernierSalaireBrutAnnuel) * 100,
+      tauxRemplacementBrut:
+        (pensionBruteAnnuelle / dernierSalaireBrutAnnuel) * 100,
       data: yearlyData
     });
+
   }, [inputs]);
 
   const handleInputChange = (e) => {
@@ -116,7 +135,10 @@ const App = () => {
             <p className="text-slate-500 mt-1">Basé sur vos modèles de calcul de cotisations et rendements.</p>
           </div>
           <div className="bg-blue-600 text-white px-6 py-3 rounded-2xl shadow-lg flex flex-col items-center">
-            <span className="text-sm font-medium opacity-80 uppercase tracking-wider">Pension Mensuelle Estime</span>
+            <span className="text-sm font-medium opacity-80 uppercase tracking-wider">
+              Pension Mensuelle Estimée
+            </span>
+            <span className="text-xs text-white/80 mt-1">(consommation du capital)</span>
             <span className="text-3xl font-black">{formatEuro(results.pensionBruteMensuelle)}</span>
           </div>
         </header>
@@ -165,6 +187,21 @@ const App = () => {
                   <input 
                     type="number" name="tauxEvolutionSalaire" value={inputs.tauxEvolutionSalaire} onChange={handleInputChange}
                     className="w-full p-2 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    Taux de dividendes réinvestis (% annuel)
+                  </label>
+                  <input
+                    type="number"
+                    name="tauxDividende"
+                    min="0"
+                    max="20"
+                    step="0.1"
+                    value={inputs.tauxDividende}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
                   />
                 </div>
               </div>
@@ -224,6 +261,7 @@ const App = () => {
 
           {/* Main Dashboard */}
           <main className="lg:col-span-8 space-y-6">
+            
             {/* Summary Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100
@@ -246,12 +284,17 @@ const App = () => {
 
               <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100
                               transform transition-all duration-300 hover:scale-105 hover:shadow-xl hover:border-blue-300 relative">
-                <span className="text-slate-500 text-sm font-medium">Part Intérêts/Rendement</span>
-                <div className="text-2xl font-bold text-slate-800">{((results.totalRendements / results.capitalFinal) * 100).toFixed(1)} %</div>
+                <span className="text-slate-500 text-sm font-medium">
+                  Dividendes Annuels Estimés
+                </span>
+                <div className="text-2xl font-bold text-slate-800">
+                  {formatEuro(results.dividendesAnnuels)}
+                </div>
                 <div className="mt-2 flex items-center text-xs font-bold text-purple-600 bg-purple-50 w-fit px-2 py-1 rounded-full">
-                  Effet cumulé
+                  Basé sur {inputs.tauxDividende}% du capital
                 </div>
               </div>
+
             </div>
 
             {/* Chart Area */}
@@ -279,7 +322,7 @@ const App = () => {
                       axisLine={false} 
                       tickLine={false} 
                       tick={{fill: '#94a3b8', fontSize: 12}}
-                      label={{ value: 'Années de cotisations', position: 'insideBottom', offset: -5 }}
+                      label={{ value: 'Années de carrière', position: 'insideBottom', offset: -5 }}
                     />
                     <YAxis 
                       axisLine={false} 
@@ -354,6 +397,12 @@ const App = () => {
       C'est la magie des intérêts composés sur {inputs.anneesCotisation} ans.
     </p>
 
+    {/* Texte explicatif au hover */}
+    <div className="absolute top-3 right-4 opacity-0 
+                    transition-opacity duration-300 
+                    hover:opacity-100 text-xs text-blue-700">
+      Les intérêts composés accélèrent la croissance du capital.
+    </div>
   </div>
 
 
@@ -394,6 +443,12 @@ const App = () => {
                   </div>
                 </div>
 
+                {/* Texte explicatif au hover */}
+                <div className="absolute top-3 right-4 opacity-0 
+                                transition-opacity duration-300 
+                                hover:opacity-100 text-xs text-slate-300">
+                  Compare le dernier salaire à la pension estimée.
+                </div>
               </div>
             </div>
           </main>
